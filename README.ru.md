@@ -6,6 +6,16 @@
 Календарные операции используют опубликованный `denetorus/galaxy-date ^0.1.0` из Packagist.
 Лицензия [MIT](LICENSE). Copyright (c) 2026 Mylnikov Denis.
 
+## Установка
+
+Установите версию 0.1.0 из [Packagist](https://packagist.org/packages/denetorus/galaxy-validation):
+
+```sh
+composer require denetorus/galaxy-validation:0.1.0
+```
+
+Composer автоматически установит GalaxyDate. Подключите `vendor/autoload.php` в приложении.
+
 ## Типы и строгость
 
 Основные правила: `string`, `integer`, `float`, `boolean`, `mixed`.
@@ -27,7 +37,7 @@ array[mixed] требует PHP array и принимает любые элем�
 
 ## Пример
 
-Выполните `composer install` в этом каталоге исходников, затем сохраните как example.php:
+После установки сохраните пример как `example.php` в каталоге вашего проекта:
 
 ```php
 <?php

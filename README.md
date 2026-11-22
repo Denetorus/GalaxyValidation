@@ -6,6 +6,16 @@ Validate and normalize values from any source. PHP >=8.4.
 Calendar operations use published `denetorus/galaxy-date ^0.1.0` from Packagist.
 Licensed under [MIT](LICENSE). Copyright (c) 2026 Mylnikov Denis.
 
+## Installation
+
+Install version 0.1.0 from [Packagist](https://packagist.org/packages/denetorus/galaxy-validation):
+
+```sh
+composer require denetorus/galaxy-validation:0.1.0
+```
+
+Composer installs GalaxyDate automatically. Load `vendor/autoload.php` in your application.
+
 ## Types and strictness
 
 Basic rules: `string`, `integer`, `float`, `boolean`, `mixed`.
@@ -27,7 +37,7 @@ No element conversion occurs; strict does not affect the result. Non-arrays prod
 
 ## Example
 
-Run `composer install` from this source directory, then save as example.php:
+After installation, save as `example.php` in your project directory:
 
 ```php
 <?php
