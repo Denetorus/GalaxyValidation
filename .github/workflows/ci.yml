@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    env:
+      COMPOSER_AUTH: '{}'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          tools: composer:2.11.2
+          coverage: none
+      - name: Validate manifest
+        run: composer validate --strict --no-check-publish --no-interaction
+      - name: Install development dependencies
+        run: composer install --no-interaction --no-plugins --no-scripts --prefer-dist --no-progress
+      - name: PHPUnit
+        run: php vendor/bin/phpunit --configuration phpunit.xml
+      - name: Strict runtime PSR-4
+        run: composer dump-autoload --no-dev --optimize --strict-psr --no-interaction
+
+  consumer:
+    runs-on: ubuntu-latest
+    env:
+      COMPOSER_AUTH: '{}'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          tools: composer:2.11.2
+          coverage: none
+      - name: Create independent consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          consumer="$RUNNER_TEMP/galaxy-validation-consumer"
+          mkdir "$consumer"
+          echo "CONSUMER_ROOT=$consumer" >> "$GITHUB_ENV"
+          echo "COMPOSER_HOME=$RUNNER_TEMP/galaxy-validation-composer-home" >> "$GITHUB_ENV"
+          echo "COMPOSER_CACHE_DIR=$RUNNER_TEMP/galaxy-validation-composer-cache" >> "$GITHUB_ENV"
+          php tests/create-consumer.php "$consumer" "$GITHUB_WORKSPACE"
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$CONSUMER_ROOT"
+          composer install --no-dev --no-interaction --no-plugins --no-scripts --prefer-dist --no-progress
+          composer dump-autoload --no-dev --optimize --strict-psr --no-interaction
+      - name: Verify runtime-only installation
+        run: php tests/consumer.php "$CONSUMER_ROOT"
