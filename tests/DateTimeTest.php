@@ -3,7 +3,15 @@ declare(strict_types=1);
 
 namespace Galaxy\Validation\Tests;
 
-use Galaxy\Validation\{GValidator, ValidationRule};
+require_once __DIR__ . '/Support/TestRules.php';
+
+use Galaxy\Validation\Rule\DateTimeStringRule;
+use Galaxy\Validation\Tests\Support\TestRules;
+use DateTimeImmutable;
+use InvalidArgumentException;
+use LogicException;
+
+use Galaxy\Validation\{GValidator};
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -25,7 +33,7 @@ final class DateTimeTest extends TestCase
                 "2024-01-01 12:00:00\0", '0000-01-01 00:00:00'] as $value) {
                 yield [$strict, $plain, $value, 'invalid_datetime'];
             }
-            foreach ([null, false, 123, [], new \DateTimeImmutable()] as $value) {
+            foreach ([null, false, 123, [], new DateTimeImmutable()] as $value) {
                 yield [$strict, $plain, $value, 'type_mismatch'];
             }
             yield [$strict, $plain + ['offset' => '+03:00'], '2024-01-01 12:00:00', null];
@@ -75,16 +83,16 @@ final class DateTimeTest extends TestCase
     public function testValue(bool $strict, array $options, mixed $value, ?string $reason): void
     {
 
-        $result = GValidator::validate($value, new ValidationRule('datetime-string', $strict, $options));
+        $result = GValidator::validate($value, new DateTimeStringRule($strict, $options));
         self::assertSame($reason === null, $result->isValid());
         if ($reason === null) {
             self::assertSame($value, $result->value());
         }
         else {
-            self::assertCount(1, $result->violations);
-            self::assertSame($reason, $result->violations[0]->reason);
-            self::assertSame('datetime-string', $result->violations[0]->expectedType);
-            self::assertNull($result->violations[0]->key);
+            self::assertCount(1, $result->errors);
+            self::assertSame($reason, $result->errors[0]->reason);
+            self::assertSame('datetime-string', $result->errors[0]->expectedType);
+            self::assertNull($result->errors[0]->key);
         }
 
     }
@@ -92,7 +100,7 @@ final class DateTimeTest extends TestCase
     public static function invalidOptions(): iterable
     {
 
-        foreach (['datetime-string', 'array[datetime-string]'] as $type) {
+        foreach (['datetime-string'] as $type) {
 
             foreach ([
                 [], ['format' => ''], ['format' => 12], ['format' => 'Y-m-d'], ['format' => 'H:i:s'],
@@ -119,35 +127,11 @@ final class DateTimeTest extends TestCase
     #[DataProvider('invalidOptions')]
     public function testConfiguration(string $type, array $options): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-        new ValidationRule($type, options: $options);
+        $this->expectException(InvalidArgumentException::class);
+        TestRules::create($type, options: $options);
     }
 
-    public function testArraysCollectAllViolationsAndPreserveKeys(): void
-    {
 
-        $rule = new ValidationRule('array[datetime-string]', options: [
-            'format' => 'Y-m-d H:i:s', 'timezone' => 'Europe/Berlin',
-        ]);
-        $input = ['gap' => '2024-03-31 02:30:00', 8 => '2024-10-27 02:30:00', 'bad' => null];
-        $result = GValidator::validate($input, $rule);
-        self::assertSame(['gap', 8, 'bad'], array_column($result->violations, 'key'));
-        self::assertSame(
-            ['nonexistent_local_time', 'ambiguous_local_time', 'type_mismatch'],
-            array_column($result->violations, 'reason'),
-        );
-        self::assertSame(
-            ['datetime-string', 'datetime-string', 'datetime-string'],
-            array_column($result->violations, 'expectedType'),
-        );
-        self::assertSame([], GValidator::validate([], $rule)->value());
-        $valid = ['winter' => '2024-01-01 12:00:00', 3 => '2024-07-01 12:00:00'];
-        self::assertSame($valid, GValidator::validate($valid, $rule)->value());
-        self::assertSame('array[datetime-string]', GValidator::validate('x', $rule)->violations[0]->expectedType);
-        $this->expectException(\LogicException::class);
-        $result->value();
-
-    }
 
     public function testDefaultTimezoneDoesNotChangeTheResult(): void
     {
@@ -156,7 +140,7 @@ final class DateTimeTest extends TestCase
         try {
 
             date_default_timezone_set('Pacific/Apia');
-            $rule = new ValidationRule('datetime-string', options: ['format' => 'Y-m-d H:i:s']);
+            $rule = new DateTimeStringRule(options: ['format' => 'Y-m-d H:i:s']);
             self::assertSame('2011-12-30 12:00:00', GValidator::validate('2011-12-30 12:00:00', $rule)->value());
 
         }

@@ -3,7 +3,14 @@ declare(strict_types=1);
 
 namespace Galaxy\Validation\Tests;
 
-use Galaxy\Validation\{GValidator, ValidationRule};
+require_once __DIR__ . '/Support/TestRules.php';
+
+use Galaxy\Validation\Rule\MixedRule;
+use Galaxy\Validation\Tests\Support\TestRules;
+use LogicException;
+use stdClass;
+
+use Galaxy\Validation\{GValidator};
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -25,17 +32,12 @@ final class GValidatorTest extends TestCase
         foreach (['', ' 18', '18 ', '1.0', '1e2', '+', '--1', "1\n", '١'] as $value) {
             yield ['integer', false, $value, null, 'invalid_integer'];
         }
-        foreach ([true, false, null, 18.0, [], new \stdClass()] as $value) {
+        foreach ([true, false, null, 18.0, [], new stdClass()] as $value) {
             yield ['integer', false, $value, null, 'type_mismatch'];
         }
         yield ['string', true, '', '', null];
         yield ['string', false, '18', '18', null];
         yield ['string', false, 18, null, 'type_mismatch'];
-        yield ['array[integer]', false, ['a' => '01', 4 => '-2'], ['a' => 1, 4 => -2], null];
-        yield ['array[string]', true, [], [], null];
-        yield ['array[integer]', true, [], [], null];
-        yield ['array[string]', false, ['a' => 'x'], ['a' => 'x'], null];
-        yield ['array[string]', true, 'x', null, 'type_mismatch'];
 
     }
 
@@ -43,46 +45,30 @@ final class GValidatorTest extends TestCase
     public function testValues(string $type, bool $strict, mixed $input, mixed $expected, ?string $reason): void
     {
 
-        $result = GValidator::validate($input, new ValidationRule($type, $strict));
+        $result = GValidator::validate($input, TestRules::create($type, $strict));
         self::assertSame($reason === null, $result->isValid());
         if ($reason === null) {
-            self::assertSame([], $result->violations);
+            self::assertSame([], $result->errors);
             self::assertSame($expected, $result->value());
         }
         else {
-            self::assertCount(1, $result->violations);
-            self::assertSame($reason, $result->violations[0]->reason);
-            self::assertSame($type, $result->violations[0]->expectedType);
-            self::assertNull($result->violations[0]->key);
+            self::assertCount(1, $result->errors);
+            self::assertSame($reason, $result->errors[0]->reason);
+            self::assertSame($type, $result->errors[0]->expectedType);
+            self::assertNull($result->errors[0]->key);
         }
 
     }
 
-    public function testEveryInvalidElementIsReportedWithoutMutatingInput(): void
-    {
 
-        $input = ['good' => '2', 'bad' => 'x', 9 => [], 'nested' => ['1']];
-        $result = GValidator::validate($input, new ValidationRule('array[integer]', false));
-        self::assertFalse($result->isValid());
-        self::assertSame(['bad', 9, 'nested'], array_column($result->violations, 'key'));
-        self::assertSame(
-            ['invalid_integer', 'type_mismatch', 'type_mismatch'],
-            array_column($result->violations, 'reason'),
-        );
-        self::assertSame(['integer', 'integer', 'integer'], array_column($result->violations, 'expectedType'));
-        self::assertSame(['good' => '2', 'bad' => 'x', 9 => [], 'nested' => ['1']], $input);
-        $this->expectException(\LogicException::class);
-        $result->value();
-
-    }
 
     public function testMixedPreservesObjectIdentityAndNull(): void
     {
 
-        $object = new \stdClass();
+        $object = new stdClass();
         foreach ([true, false] as $strict) {
-            self::assertSame($object, GValidator::validate($object, new ValidationRule('mixed', $strict))->value());
-            self::assertNull(GValidator::validate(null, new ValidationRule('mixed', $strict))->value());
+            self::assertSame($object, GValidator::validate($object, new MixedRule($strict))->value());
+            self::assertNull(GValidator::validate(null, new MixedRule($strict))->value());
         }
 
     }

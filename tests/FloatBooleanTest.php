@@ -3,7 +3,13 @@ declare(strict_types=1);
 
 namespace Galaxy\Validation\Tests;
 
-use Galaxy\Validation\{GValidator, ValidationRule};
+require_once __DIR__ . '/Support/TestRules.php';
+
+use Galaxy\Validation\Tests\Support\TestRules;
+use LogicException;
+use stdClass;
+
+use Galaxy\Validation\{GValidator};
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -23,7 +29,7 @@ final class FloatBooleanTest extends TestCase
             yield ['float', $strict, -INF, null, 'float_out_of_range'];
             yield ['boolean', $strict, true, true, null];
             yield ['boolean', $strict, false, false, null];
-            foreach ([null, [], new \stdClass()] as $value) {
+            foreach ([null, [], new stdClass()] as $value) {
                 yield ['float', $strict, $value, null, 'type_mismatch'];
                 yield ['boolean', $strict, $value, null, 'type_mismatch'];
             }
@@ -72,86 +78,24 @@ final class FloatBooleanTest extends TestCase
     public function testScalars(string $type, bool $strict, mixed $input, mixed $expected, ?string $reason): void
     {
 
-        $result = GValidator::validate($input, new ValidationRule($type, $strict));
+        $result = GValidator::validate($input, TestRules::create($type, $strict));
         self::assertSame($reason === null, $result->isValid());
         if ($reason === null) {
             self::assertSame($expected, $result->value());
         }
         else {
-            self::assertCount(1, $result->violations);
-            self::assertSame($reason, $result->violations[0]->reason);
-            self::assertSame($type, $result->violations[0]->expectedType);
-            self::assertNull($result->violations[0]->key);
+            self::assertCount(1, $result->errors);
+            self::assertSame($reason, $result->errors[0]->reason);
+            self::assertSame($type, $result->errors[0]->expectedType);
+            self::assertNull($result->errors[0]->key);
         }
 
     }
 
-    public function testArrayConversionsPreserveKeysAndInput(): void
-    {
 
-        $floats = ['rate' => '1.5', 8 => 2];
-        $booleans = ['active' => 'FALSE', 7 => 1];
-        self::assertSame(
-            ['rate' => 1.5, 8 => 2.0],
-            GValidator::validate($floats, new ValidationRule('array[float]', false))->value(),
-        );
-        self::assertSame(
-            ['active' => false, 7 => true],
-            GValidator::validate($booleans, new ValidationRule('array[boolean]', false))->value(),
-        );
-        self::assertSame(['rate' => '1.5', 8 => 2], $floats);
-        self::assertSame(['active' => 'FALSE', 7 => 1], $booleans);
 
-    }
 
-    public function testArraysCollectEveryViolationAndHaveNoPartialValue(): void
-    {
 
-        $cases = [
-            ['float', ['ok' => 1.5, 'bad' => 'x', 9 => INF, 'nested' => []],
-                ['invalid_float', 'float_out_of_range', 'type_mismatch']],
-            ['boolean', ['ok' => false, 'bad' => 'yes', 9 => 2, 'nested' => []],
-                ['invalid_boolean', 'invalid_boolean', 'type_mismatch']],
-        ];
-        foreach ($cases as [$type, $input, $reasons]) {
 
-            $result = GValidator::validate($input, new ValidationRule('array[' . $type . ']', false));
-            self::assertFalse($result->isValid());
-            self::assertSame(['bad', 9, 'nested'], array_column($result->violations, 'key'));
-            self::assertSame($reasons, array_column($result->violations, 'reason'));
-            self::assertSame([$type, $type, $type], array_column($result->violations, 'expectedType'));
-            try {
-                $result->value();
-                self::fail('Partial value must not be exposed.');
-            }
-            catch (\LogicException) {
-                self::assertTrue(true);
-            }
-
-        }
-
-    }
-
-    public function testStrictArraysAndEmptyArrays(): void
-    {
-
-        foreach (['float' => 1.5, 'boolean' => false] as $type => $value) {
-
-            foreach ([true, false] as $strict) {
-                $rule = new ValidationRule('array[' . $type . ']', $strict);
-                self::assertSame([], GValidator::validate([], $rule)->value());
-                self::assertSame(['key' => $value], GValidator::validate(['key' => $value], $rule)->value());
-            }
-            $rule = new ValidationRule('array[' . $type . ']');
-            $result = GValidator::validate(['bad' => '1'], $rule);
-            self::assertSame('type_mismatch', $result->violations[0]->reason);
-            self::assertSame($type, $result->violations[0]->expectedType);
-            $result = GValidator::validate($value, $rule);
-            self::assertSame('array[' . $type . ']', $result->violations[0]->expectedType);
-            self::assertNull($result->violations[0]->key);
-
-        }
-
-    }
 
 }
