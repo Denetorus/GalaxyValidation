@@ -10,7 +10,7 @@ MIT. Copyright (c) 2026 Mylnikov Denis.
 composer require denetorus/galaxy-validation:0.2.0
 ```
 
-Целевой выпуск: **v0.2.0**. Команда станет доступна после публикации.
+Версия **0.2.0** доступна через [Packagist](https://packagist.org/packages/denetorus/galaxy-validation).
 Редакция заменяет прежний API; обратная совместимость не предоставляется.
 
 ## Назначение и зависимости
